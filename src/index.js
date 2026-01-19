@@ -47,6 +47,13 @@ async function fetchBuildings(lat, lon) {
 function renderMarkers(buildings) {
     const container = document.querySelector('#building-markers');
 
+    createMarker({
+        name: "TEST",
+        height: 100,
+        lat: latitude + 0.001,
+        lon: longitude
+    }, container);
+
     buildings.forEach(b => {
         createMarker(b, container)
     });
@@ -57,9 +64,10 @@ function createMarker(building, container) {
     entity.setAttribute('gps-entity-place', `latitude: ${building.lat}; longitude: ${building.lon};`);
 
     // Add a visual 3D label (a text box)
-    entity.setAttribute('geometry', 'primitive: box; height: 10; width: 10; depth: 0.1');
+    entity.setAttribute('geometry', 'primitive: box; height: 2; width: 2; depth: 0.1');
     entity.setAttribute('material', 'color: #00FF00; shader: flat; opacity: 0.8');
     entity.setAttribute('text', `value: ${building.name}\n${building.height}m; align: center; width: 50;`);
+    entity.setAttribute('position', '0 5 0'); // lift it 5m above ground
 
     // Ensure it faces the user
     entity.setAttribute('look-at', '[gps-camera]');

@@ -8,8 +8,8 @@
   </head>
 
   <body>
-    <a-scene embedded arjs="sourceType: webcam;" osm-manager>
-        <a-camera gps-camera rotation-reader look-controls far="50000"></a-camera>
+    <a-scene embedded arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;">
+        <a-camera gps-camera="minDistance: 5; maxDistance: 3000" rotation-reader look-controls></a-camera>
         <a-entity id="building-markers"></a-entity>
     </a-scene>
     <script src="./main.js"></script>
