@@ -48,19 +48,21 @@ function renderMarkers(buildings) {
     const container = document.querySelector('#building-markers');
 
     buildings.forEach(b => {
-        // 4. Create an AR Marker (Entity)
-        const entity = document.createElement('a-entity');
-        entity.setAttribute('gps-entity-place', `latitude: ${b.lat}; longitude: ${b.lon};`);
-
-        // Add a visual 3D label (a text box)
-        entity.setAttribute('geometry', 'primitive: box; height: 10; width: 10; depth: 0.1');
-        entity.setAttribute('material', 'color: red');
-        entity.setAttribute('text', `value: ${b.name}\n${b.height}m; align: center; width: 50;`);
-
-        // Ensure it faces the user
-        entity.setAttribute('look-at', '[gps-camera]');
-        entity.setAttribute('scale', '20 20 20'); // Scale depends on distance
-
-        container.appendChild(entity);
+        createMarker(b, container)
     });
+}
+
+function createMarker(building, container) {
+    const entity = document.createElement('a-entity');
+    entity.setAttribute('gps-entity-place', `latitude: ${building.lat}; longitude: ${building.lon};`);
+
+    // Add a visual 3D label (a text box)
+    entity.setAttribute('geometry', 'primitive: box; height: 10; width: 10; depth: 0.1');
+    entity.setAttribute('material', 'color: red');
+    entity.setAttribute('text', `value: ${building.name}\n${building.height}m; align: center; width: 50;`);
+
+    // Ensure it faces the user
+    entity.setAttribute('look-at', '[gps-camera]');
+
+    container.appendChild(entity);
 }
