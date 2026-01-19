@@ -1,5 +1,3 @@
-import './styles.css';
-
 // 1. Get user's current position
 navigator.geolocation.getCurrentPosition((position) => {
     const { latitude, longitude } = position.coords;

@@ -3,6 +3,10 @@
     "aframe": "^1.7.1",
     "aframe-look-at-component": "^1.0.0"
   },
+  "scripts": {
+    "build": "npx webpack --mode production",
+    "local": "npx http-server ./dist"
+  },
   "devDependencies": {
     "css-loader": "^7.1.2",
     "style-loader": "^4.0.0",
