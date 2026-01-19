@@ -9,7 +9,7 @@
 
   <body>
     <a-scene embedded arjs="sourceType: webcam;" osm-manager>
-        <a-camera gps-camera rotation-reader look-controls></a-camera>
+        <a-camera gps-camera rotation-reader look-controls far="50000"></a-camera>
         <a-entity id="building-markers"></a-entity>
     </a-scene>
     <script src="./main.js"></script>
