@@ -3,18 +3,10 @@
   <head>
       <title>What Is That Building?</title>
       <link rel="stylesheet" href="style.css">
-      <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-  <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
-</head>
   </head>
-
   <body>
-    <a-scene embedded arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;">
-        <a-camera gps-camera="minDistance: 5; maxDistance: 3000" rotation-reader look-controls></a-camera>
-        <a-entity id="building-markers"></a-entity>
-    </a-scene>
+    <video id="camera" autoplay playsinline muted></video>
+    <canvas id="hud"></canvas>
     <script src="./main.js"></script>
   </body>
-
 </html>
