@@ -143,7 +143,7 @@ class Buildings {
     }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
     const camera = new Camera("camera");
     camera.start();
 
