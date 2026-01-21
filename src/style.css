@@ -14,10 +14,6 @@ body {
     height: 100vh;
 }
 
-#hud {
-    pointer-events: none;
-}
-
 #camera {
     object-fit: cover;
     object-position: center center;
