@@ -9,6 +9,7 @@ module.exports = {
   externals: {
     aframe: 'AFRAME'
   },
+  devtool: 'source-map',
   devServer: {
     static: './',
     hot: true,
