@@ -227,10 +227,11 @@ class Compass {
         }
 
         window.addEventListener(
-            'deviceorientation',
+            'deviceorientationabsolute',
             this.onOrientation.bind(this),
             true
         );
+        window.addEventListener('deviceorientation', this.onOrientation.bind(this), true);
 
         this.enabled = true;
     }
@@ -238,14 +239,27 @@ class Compass {
     onOrientation(event) {
         let newHeading;
 
+        // 1️⃣ Prefer true compass when available
         if (typeof event.webkitCompassHeading === 'number') {
             newHeading = event.webkitCompassHeading;
-        } else if (typeof event.alpha === 'number') {
-            newHeading = 360 - event.alpha;
-        } else {
+        }
+        // 2️⃣ Android absolute fallback
+        else if (event.absolute === true && typeof event.alpha === 'number') {
+            newHeading = (360 - event.alpha) % 360;
+        }
+        else {
             return;
         }
 
+        // 3️⃣ Correct for screen orientation
+        const screenAngle =
+            screen.orientation?.angle ??
+            window.orientation ??
+            0;
+
+        newHeading = (newHeading + screenAngle + 360) % 360;
+
+        // 4️⃣ Circular smoothing (keep this — it’s correct)
         const delta =
             ((newHeading - this.heading + 540) % 360) - 180;
 
