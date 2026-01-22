@@ -20,6 +20,7 @@ class Camera {
 
 class Buildings {
     DISTANCE = 0.10
+    MAX_BUILDINGS = 15
     API_URL = "https://overpass-api.de/api/interpreter?data="
 
     constructor(latitude, longitude) {
@@ -51,7 +52,7 @@ class Buildings {
             relation["building"]["height"~"^[1-9][0-9][0-9]"](${this.south},${this.west},${this.north},${this.east});
             way["building"]["building:levels"~"^[3-9][0-9]"](${this.south},${this.west},${this.north},${this.east});
             );
-            out center 15;
+            out center ${this.MAX_BUILDINGS};
         `
     }
 
@@ -99,7 +100,7 @@ class Buildings {
             };
         })
         .sort((a, b) => b.height - a.height)
-        .slice(0, 5);
+        .slice(0, this.MAX_BUILDINGS);
 
         return buildings;
     }
