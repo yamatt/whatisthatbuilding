@@ -19,7 +19,7 @@ class Camera {
 }
 
 class Buildings {
-    OFFSET = 0.15
+    DISTANCE = 0.10
     API_URL = "https://overpass-api.de/api/interpreter?data="
 
     constructor(latitude, longitude) {
@@ -28,19 +28,19 @@ class Buildings {
     }
 
     get north() {
-        return this.latitude + this.OFFSET;
+        return this.latitude + this.DISTANCE;
     }
 
     get south() {
-        return this.latitude - this.OFFSET;
+        return this.latitude - this.DISTANCE;
     }
 
     get east() {
-        return this.longitude + this.OFFSET;
+        return this.longitude + this.DISTANCE;
     }
 
     get west() {
-        return this.longitude - this.OFFSET;
+        return this.longitude - this.DISTANCE;
     }
 
     get query() {
