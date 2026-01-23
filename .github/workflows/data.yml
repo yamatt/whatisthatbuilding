@@ -52,4 +52,8 @@ jobs:
         run: |
           spatialite region.db "VACUUM; ANALYZE;"
 
+      - name: Get file size
+        run: |
+          ls -lah region.db
+
       # - name: Send to Cloudflare R2
