@@ -39,7 +39,7 @@ jobs:
       - name: Filter Tall Buildings & Peaks
         run: |
           osmium tags-filter "${{ matrix.region.id }}.osm.pbf" \
-            -e src/data/osmium-filter.ini
+            -e src/data/osmium-filter.ini \
             -o "${{ matrix.region.path }}-tall.osm.pbf" --overwrite
 
       - name: Convert to SpatiaLite
