@@ -9,6 +9,10 @@ on:
       - src/data/osmium-filter.ini
       - .github/workflows/data.yml
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-databases:
     runs-on: ubuntu-latest
