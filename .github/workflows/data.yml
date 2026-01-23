@@ -1,0 +1,53 @@
+name: Landmark Update
+on:
+  schedule:
+    - cron: "0 0 1 * *" # 1st of every month
+  push:
+    branches:
+      - main
+    paths:
+      - src/data/osmium-filter.ini
+      - .github/workflows/data.yml
+
+jobs:
+  build-databases:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Add any Geofabrik region slugs here
+        region:
+          - id: uk
+            path: "europe/united-kingdom"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install GIS Tools
+        run: sudo apt-get install -y osmium-tool gdal-bin spatialite-bin
+
+      - name: Download OSM Data
+        run: |
+          # Geofabrik URLs follow a pattern: europe/region-latest.osm.pbf
+          wget http://download.geofabrik.de/${{ matrix.region.path }}-latest.osm.pbf -O ${{ matrix.region.id }}.osm.pbf
+
+      - name: Filter Tall Buildings & Peaks
+        run: |
+          osmium tags-filter "${{ matrix.region.id }}.osm.pbf" \
+            -e src/data/osmium-filter.ini
+            -o "${{ matrix.region.path }}-tall.osm.pbf" --overwrite
+
+      - name: Convert to SpatiaLite
+        run: |
+          # Select only necessary columns to keep the file size tiny
+          ogr2ogr -f SQLite -dsco SPATIALITE=YES \
+            -nlt PROMOTE_TO_MULTI \
+            -select name,building,height,"building:levels",man_made,natural,ele \
+            "${{ matrix.region.id }}.db" "${{ matrix.region.path }}-tall.osm.pbf"
+
+      - name: Optimize Database
+        run: |
+          spatialite "${{ matrix.region.id }}.db" "VACUUM; ANALYZE;"
+
+      # - name: Send to Cloudflare R2
