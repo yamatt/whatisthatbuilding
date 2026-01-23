@@ -43,7 +43,6 @@ jobs:
 
       - name: Convert to SpatiaLite
         run: |
-          # Select only necessary columns to keep the file size tiny
           ogr2ogr -f SQLite -dsco SPATIALITE=YES \
             -nlt PROMOTE_TO_MULTI \
             -select name,building,height,"building:levels",man_made,natural,ele \
