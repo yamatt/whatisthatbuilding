@@ -34,7 +34,7 @@ jobs:
       - name: Download OSM Data
         run: |
           # Geofabrik URLs follow a pattern: europe/region-latest.osm.pbf
-          wget http://download.geofabrik.de/${{ matrix.region.path }}-latest.osm.pbf -O ${{ matrix.region.id }}.osm.pbf
+          wget -q --show-progress --progress=dot:giga http://download.geofabrik.de/${{ matrix.region.path }}-latest.osm.pbf -O ${{ matrix.region.id }}.osm.pbf
 
       - name: Filter Tall Buildings & Peaks
         run: |
