@@ -34,13 +34,13 @@ jobs:
       - name: Download OSM Data
         run: |
           # Geofabrik URLs follow a pattern: europe/region-latest.osm.pbf
-          wget -q --show-progress --progress=dot:giga http://download.geofabrik.de/${{ matrix.region.path }}-latest.osm.pbf -O ${{ matrix.region.id }}.osm.pbf
+          wget -q --show-progress --progress=dot:giga http://download.geofabrik.de/${{ matrix.region.path }}-latest.osm.pbf -O region.osm.pbf
 
       - name: Filter Tall Buildings & Peaks
         run: |
-          osmium tags-filter "${{ matrix.region.id }}.osm.pbf" \
+          osmium tags-filter region.osm.pbf \
             -e src/data/osmium-filter.ini \
-            -o "${{ matrix.region.path }}-tall.osm.pbf" --overwrite
+            -o region-tall.osm.pbf --overwrite
 
       - name: Convert to SpatiaLite
         run: |
@@ -48,10 +48,10 @@ jobs:
           ogr2ogr -f SQLite -dsco SPATIALITE=YES \
             -nlt PROMOTE_TO_MULTI \
             -select name,building,height,"building:levels",man_made,natural,ele \
-            "${{ matrix.region.id }}.db" "${{ matrix.region.path }}-tall.osm.pbf"
+            "region.db" "region-tall.osm.pbf"
 
       - name: Optimize Database
         run: |
-          spatialite "${{ matrix.region.id }}.db" "VACUUM; ANALYZE;"
+          spatialite region.db "VACUUM; ANALYZE;"
 
       # - name: Send to Cloudflare R2
