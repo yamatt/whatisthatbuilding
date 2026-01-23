@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - "main"
+    paths:
+      - build.yml
+      - src/site/**
+      - package.json
+      - package-lock.json
+      - webpack.config.js
 
 permissions:
   contents: read
