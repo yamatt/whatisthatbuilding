@@ -31,9 +31,8 @@ jobs:
       - name: Install GIS Tools
         run: sudo apt-get install -y osmium-tool gdal-bin spatialite-bin
 
-      - name: Download OSM Data
+      - name: Download OSM Data from GeoFabrik
         run: |
-          # Geofabrik URLs follow a pattern: europe/region-latest.osm.pbf
           wget -q --show-progress --progress=dot:giga http://download.geofabrik.de/${{ matrix.region.path }}-latest.osm.pbf -O region.osm.pbf
 
       - name: Filter Tall Buildings & Peaks
