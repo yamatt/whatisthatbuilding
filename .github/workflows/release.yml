@@ -1,0 +1,68 @@
+name: Release Extractor Tool
+
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - "src/tooling/extract/**"
+            - ".goreleaser.yml"
+            - ".github/workflows/release.yml"
+        tags:
+            - "v*"
+    workflow_dispatch:
+
+permissions:
+    contents: write
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.23"
+
+            - name: Install build dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y libspatialite-dev sqlite3 libsqlite3-dev gcc
+
+            - name: Run Go linting
+              uses: golangci/golangci-lint-action@v8
+              with:
+                  version: latest
+                  working-directory: src/tooling/extract
+                  args: --timeout=5m
+
+            - name: Run Go tests
+              run: |
+                  cd src/tooling/extract
+                  go test -v ./...
+
+            - name: Determine release tag
+              id: tag
+              run: |
+                  if [[ $GITHUB_REF == refs/tags/* ]]; then
+                    echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+                  else
+                    # Create a timestamp-based tag for non-tag pushes
+                    TAG="auto-$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)"
+                    echo "tag=$TAG" >> $GITHUB_OUTPUT
+                    git tag $TAG
+                  fi
+
+            - name: Run GoReleaser
+              uses: goreleaser/goreleaser-action@v6
+              with:
+                  distribution: goreleaser
+                  version: "~> v2"
+                  args: release --clean
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

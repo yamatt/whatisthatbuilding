@@ -143,3 +143,5 @@ vite.config.ts.timestamp-*
 
 *.pbf
 *.db
+
+tall-extractor
