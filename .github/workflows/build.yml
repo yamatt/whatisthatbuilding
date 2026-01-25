@@ -33,9 +33,6 @@ jobs:
         run: npm install
       - name: Package libraries
         run: npm run build
-      - name: Copy static files
-        run: |
-          cp src/static/index.html src/static/style.css ./dist
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
