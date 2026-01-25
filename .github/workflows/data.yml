@@ -28,32 +28,81 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Download tall-extractor binary
+        run: |
+          RELEASE_URL=$(curl -s https://api.github.com/repos/yamatt/whatisthatbuilding/releases/latest | jq -r '.assets[] | select(.name | contains("tall-extractor_Linux_x86_64")) | .browser_download_url')
+          wget -q "$RELEASE_URL" -O tall-extractor
+          chmod +x tall-extractor
+
       - name: Install GIS Tools
-        run: sudo apt-get install -y osmium-tool gdal-bin spatialite-bin
+        run: sudo apt-get update && sudo apt-get install -y libspatialite7 osmium-tool
 
       - name: Download OSM Data from GeoFabrik
         run: |
           wget -q --show-progress --progress=dot:giga http://download.geofabrik.de/${{ matrix.region.path }}-latest.osm.pbf -O region.osm.pbf
 
-      - name: Filter Tall Buildings & Peaks
+      - name: Extract Tall Buildings & Peaks
         run: |
-          osmium tags-filter region.osm.pbf \
-            -e src/data/osmium-filter.ini \
-            -o region-tall.osm.pbf --overwrite
-
-      - name: Convert to SpatiaLite
-        run: |
-          ogr2ogr -f SQLite -dsco SPATIALITE=YES \
-            -nlt PROMOTE_TO_MULTI \
-            -select name,building,height,"building:levels",man_made,natural,ele \
-            "region.db" "region-tall.osm.pbf"
-
-      - name: Optimize Database
-        run: |
-          spatialite region.db "VACUUM; ANALYZE;"
+          ./tall-extractor region.osm.pbf region.db
 
       - name: Get file size
         run: |
-          ls -lah region.db
+          echo "DATABASE_SIZE=$(ls -lh region.db | cut -d ' ' -f 5)" >> $GITHUB_STEP_SUMMARY
 
-      # - name: Send to Cloudflare R2
+      - name: Upload db to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-${{ matrix.region.id }}
+          path: region.db
+          retention-days: 7
+
+      - name: Create manifest
+        run: |
+          python3 src/tooling/manifest/generate_manifest.py \
+            --region-id "${{ matrix.region.id }}" \
+            --db region.db \
+            --pbf region.osm.pbf \
+            --output manifest.json
+
+      - name: Upload manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: manifest-${{ matrix.region.id }}
+          path: manifest.json
+          retention-days: 7
+
+      - name: Upload to Cloudflare R2
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: |
+            r2 object put s3://${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}/${{ matrix.region.id }}.db region.db
+
+  aggregate-manifest:
+    runs-on: ubuntu-latest
+    needs: build-databases
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Download manifests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: manifest-*
+          path: manifests
+
+      - name: Combine manifests
+        run: |
+          python3 src/tooling/manifest/combine_manifests.py \
+            --output manifest-latest.json \
+            --input-glob "manifests/**/manifest.json"
+
+      - name: Upload combined manifest to Cloudflare R2
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: |
+            r2 object put s3://${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}/manifest-latest.json manifest-latest.json
