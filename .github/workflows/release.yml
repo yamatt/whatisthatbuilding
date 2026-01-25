@@ -46,17 +46,13 @@ jobs:
                   cd src/tooling/extract
                   go test -v ./...
 
-            - name: Determine release tag
-              id: tag
+            - name: Create pre-release tag for non-tag pushes
+              if: ${{ !startsWith(github.ref, 'refs/tags/') }}
               run: |
-                  if [[ $GITHUB_REF == refs/tags/* ]]; then
-                    echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-                  else
-                    # Create a timestamp-based tag for non-tag pushes
-                    TAG="auto-$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)"
-                    echo "tag=$TAG" >> $GITHUB_OUTPUT
-                    git tag $TAG
-                  fi
+                  # Create a semver-compatible pre-release tag for non-tag pushes, e.g. v0.0.0-20260125-140145.f2ef33a
+                  TAG="v0.0.0-$(date +%Y%m%d-%H%M%S).$(git rev-parse --short HEAD)"
+                  git tag "$TAG"
+                  echo "Created tag $TAG"
 
             - name: Run GoReleaser
               uses: goreleaser/goreleaser-action@v6
