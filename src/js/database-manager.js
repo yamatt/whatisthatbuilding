@@ -1,4 +1,4 @@
-import initSqlJs from 'sql.js';
+import SPL from 'spl.js';
 
 export class DatabaseManager {
     MANIFEST_URL = "https://pub-4cb9b1aa20554a8fbd8ea99a0a2eef5c.r2.dev/manifest.json";
@@ -13,15 +13,13 @@ export class DatabaseManager {
     constructor(latitude, longitude) {
         this.latitude = latitude;
         this.longitude = longitude;
-        this.SQL = null;
+        this.spl = null;
         this.databases = [];
     }
 
     async initialize() {
-        // Initialize sql.js with local WASM file
-        this.SQL = await initSqlJs({
-            locateFile: file => `./${file}`
-        });
+        // Initialize spl.js
+        this.spl = await SPL();
     }
 
     async downloadManifest() {
@@ -86,12 +84,12 @@ export class DatabaseManager {
         }
         
         const arrayBuffer = await response.arrayBuffer();
-        const db = new this.SQL.Database(new Uint8Array(arrayBuffer));
+        const db = this.spl.db(new Uint8Array(arrayBuffer));
         
         return { region: dbInfo.id, db };
     }
 
-    queryBuildingsInDatabase(db, maxDistance = this.DEFAULT_SEARCH_RADIUS) {
+    async queryBuildingsInDatabase(db, maxDistance = this.DEFAULT_SEARCH_RADIUS) {
         const minLat = this.latitude - maxDistance;
         const maxLat = this.latitude + maxDistance;
         const minLon = this.longitude - maxDistance;
@@ -108,11 +106,11 @@ export class DatabaseManager {
 
         const results = [];
         try {
-            const stmt = db.prepare(query);
-            stmt.bind([minLat, maxLat, minLon, maxLon, this.MIN_HEIGHT_METERS, this.MIN_LEVELS]);
+            const stmt = await db.prepare(query);
+            const resultSet = await stmt.exec([minLat, maxLat, minLon, maxLon, this.MIN_HEIGHT_METERS, this.MIN_LEVELS]);
+            const rows = resultSet.get.objs;
             
-            while (stmt.step()) {
-                const row = stmt.getAsObject();
+            for (const row of rows) {
                 results.push({
                     name: row.name || "Building",
                     height: row.height || (row.levels * this.METERS_PER_LEVEL) || 0,
@@ -121,7 +119,8 @@ export class DatabaseManager {
                     type: row.type
                 });
             }
-            stmt.free();
+            
+            await stmt.finalize();
         } catch (error) {
             console.error("Error querying database:", error);
         }
@@ -166,7 +165,7 @@ export class DatabaseManager {
         let allBuildings = [];
         for (const { region, db } of this.databases) {
             console.log(`Querying database: ${region}`);
-            const buildings = this.queryBuildingsInDatabase(db);
+            const buildings = await this.queryBuildingsInDatabase(db);
             allBuildings = allBuildings.concat(buildings);
         }
 
@@ -192,10 +191,10 @@ export class DatabaseManager {
         return topBuildings;
     }
 
-    cleanup() {
+    async cleanup() {
         // Close all database connections
         for (const { db } of this.databases) {
-            db.close();
+            await db.close();
         }
         this.databases = [];
     }

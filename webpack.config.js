@@ -29,7 +29,8 @@ module.exports = {
       patterns: [
         { from: 'src/static/index.html', to: 'index.html' },
         { from: 'src/static/style.css', to: 'style.css' },
-        { from: 'node_modules/sql.js/dist/sql-wasm.wasm', to: 'sql-wasm.wasm' }
+        { from: 'node_modules/spl.js/dist/index.wasm', to: 'index.wasm' },
+        { from: 'node_modules/spl.js/dist/proj', to: 'proj' }
       ],
     }),
   ],
