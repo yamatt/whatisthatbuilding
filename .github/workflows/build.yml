@@ -35,7 +35,7 @@ jobs:
         run: npm run build
       - name: Copy static files
         run: |
-          cp src/site/index.html src/site/style.css ./dist
+          cp src/static/index.html src/static/style.css ./dist
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
