@@ -82,7 +82,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: |
-            r2 object put s3://${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}/${{ matrix.region.id }}.db region.db
+            r2 object put s3://${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}/${{ matrix.region.id }}.db --file region.db
 
   aggregate-manifest:
     runs-on: ubuntu-latest
@@ -101,7 +101,7 @@ jobs:
       - name: Combine manifests
         run: |
           python3 src/tooling/manifest/combine_manifests.py \
-            --output manifest-latest.json \
+            --output manifest.json \
             --input-glob "manifests/**/manifest.json"
 
       - name: Upload combined manifest to Cloudflare R2
@@ -110,4 +110,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: |
-            r2 object put s3://${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}/manifest-latest.json manifest-latest.json
+            r2 object put s3://${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}/manifest.json --file manifest.json
