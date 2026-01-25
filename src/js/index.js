@@ -1,6 +1,6 @@
 import { Camera } from './camera.js';
 import { Errors } from './errors.js';
-import { Buildings } from './buildings.js';
+import { DatabaseManager } from './database-manager.js';
 import { Hud } from './hud.js';
 import { Compass } from './compass.js';
 
@@ -20,8 +20,8 @@ window.addEventListener('DOMContentLoaded', async () => {
         const compass = new Compass();
         await compass.start();
 
-        const buildingQuery = new Buildings(latitude, longitude);
-        const buildings = await buildingQuery.getBuildings();
+        const databaseManager = new DatabaseManager(latitude, longitude);
+        const buildings = await databaseManager.getBuildings();
 
         const hud = new Hud("hud", buildings, () => compass.heading);
 

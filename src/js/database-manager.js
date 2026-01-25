@@ -1,0 +1,192 @@
+import initSqlJs from 'sql.js';
+
+export class DatabaseManager {
+    MANIFEST_URL = "https://pub-4cb9b1aa20554a8fbd8ea99a0a2eef5c.r2.dev/manifest.json";
+    R2_BASE_URL = "https://pub-4cb9b1aa20554a8fbd8ea99a0a2eef5c.r2.dev/";
+    CACHE_NAME = "whatisthatbuilding-db-v1";
+    
+    constructor(latitude, longitude) {
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.SQL = null;
+        this.databases = [];
+    }
+
+    async initialize() {
+        // Initialize sql.js with local WASM file
+        this.SQL = await initSqlJs({
+            locateFile: file => `./${file}`
+        });
+    }
+
+    async downloadManifest() {
+        console.log("Downloading manifest from:", this.MANIFEST_URL);
+        const response = await fetch(this.MANIFEST_URL);
+        if (!response.ok) {
+            throw new Error(`Failed to download manifest: ${response.statusText}`);
+        }
+        const manifest = await response.json();
+        console.log("Manifest downloaded:", manifest);
+        return manifest;
+    }
+
+    isLocationInBoundingBox(bbox) {
+        return (
+            this.latitude >= bbox.minLat &&
+            this.latitude <= bbox.maxLat &&
+            this.longitude >= bbox.minLon &&
+            this.longitude <= bbox.maxLon
+        );
+    }
+
+    identifyRelevantDatabases(manifest) {
+        if (!manifest.regions) {
+            console.warn("No regions found in manifest");
+            return [];
+        }
+
+        const relevantRegions = manifest.regions.filter(region => {
+            const inBox = this.isLocationInBoundingBox(region.bbox);
+            if (inBox) {
+                console.log(`User location is in region: ${region.id}`);
+            }
+            return inBox;
+        });
+
+        return relevantRegions;
+    }
+
+    async downloadAndCacheDatabase(dbInfo) {
+        const cache = await caches.open(this.CACHE_NAME);
+        const dbUrl = `${this.R2_BASE_URL}${dbInfo.db.object}`;
+        
+        console.log(`Checking cache for database: ${dbInfo.id}`);
+        let response = await cache.match(dbUrl);
+        
+        if (response) {
+            console.log(`Database ${dbInfo.id} found in cache`);
+        } else {
+            console.log(`Downloading database ${dbInfo.id} from ${dbUrl}`);
+            response = await fetch(dbUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to download database ${dbInfo.id}: ${response.statusText}`);
+            }
+            await cache.put(dbUrl, response.clone());
+            console.log(`Database ${dbInfo.id} cached successfully`);
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const db = new this.SQL.Database(new Uint8Array(arrayBuffer));
+        
+        return { region: dbInfo.id, db };
+    }
+
+    queryBuildingsInDatabase(db, maxDistance = 0.10) {
+        const minLat = this.latitude - maxDistance;
+        const maxLat = this.latitude + maxDistance;
+        const minLon = this.longitude - maxDistance;
+        const maxLon = this.longitude + maxDistance;
+
+        const query = `
+            SELECT name, type, height, levels, latitude, longitude
+            FROM features
+            WHERE latitude BETWEEN ? AND ?
+              AND longitude BETWEEN ? AND ?
+              AND (height > 30 OR levels > 5)
+            ORDER BY height DESC
+        `;
+
+        const results = [];
+        try {
+            const stmt = db.prepare(query);
+            stmt.bind([minLat, maxLat, minLon, maxLon]);
+            
+            while (stmt.step()) {
+                const row = stmt.getAsObject();
+                results.push({
+                    name: row.name || "Building",
+                    height: row.height || (row.levels * 3) || 0,
+                    lat: row.latitude,
+                    lon: row.longitude,
+                    type: row.type
+                });
+            }
+            stmt.free();
+        } catch (error) {
+            console.error("Error querying database:", error);
+        }
+
+        return results;
+    }
+
+    bearingDegrees(position_lat, position_lon, building_lat, building_lon) {
+        const toRad = deg => deg * Math.PI / 180;
+        const toDeg = rad => rad * 180 / Math.PI;
+
+        const φ1 = toRad(position_lat);
+        const φ2 = toRad(building_lat);
+        const Δλ = toRad(building_lon - position_lon);
+
+        const y = Math.sin(Δλ) * Math.cos(φ2);
+        const x =
+            Math.cos(φ1) * Math.sin(φ2) -
+            Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+
+        return (toDeg(Math.atan2(y, x)) + 360) % 360;
+    }
+
+    async getBuildings() {
+        await this.initialize();
+
+        const manifest = await this.downloadManifest();
+        const relevantRegions = this.identifyRelevantDatabases(manifest);
+
+        if (relevantRegions.length === 0) {
+            console.warn("No databases found for user location");
+            return [];
+        }
+
+        // Download and cache relevant databases
+        const dbPromises = relevantRegions.map(region => 
+            this.downloadAndCacheDatabase(region)
+        );
+        this.databases = await Promise.all(dbPromises);
+
+        // Query all databases and combine results
+        let allBuildings = [];
+        for (const { region, db } of this.databases) {
+            console.log(`Querying database: ${region}`);
+            const buildings = this.queryBuildingsInDatabase(db);
+            allBuildings = allBuildings.concat(buildings);
+        }
+
+        // Calculate bearings and sort by height
+        const buildingsWithBearings = allBuildings.map(b => ({
+            ...b,
+            bearing: this.bearingDegrees(
+                this.latitude,
+                this.longitude,
+                b.lat,
+                b.lon
+            )
+        }));
+
+        // Get top 20 tallest buildings
+        const top20 = buildingsWithBearings
+            .sort((a, b) => b.height - a.height)
+            .slice(0, 20);
+
+        console.log(`Found ${allBuildings.length} buildings total, returning top 20:`,
+            top20.map(b => `${b.name} (${b.height}m) @ ${b.bearing.toFixed(1)}°`).join(', '));
+
+        return top20;
+    }
+
+    cleanup() {
+        // Close all database connections
+        for (const { db } of this.databases) {
+            db.close();
+        }
+        this.databases = [];
+    }
+}
