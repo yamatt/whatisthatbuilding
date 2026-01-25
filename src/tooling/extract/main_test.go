@@ -35,13 +35,13 @@ func TestParseHeight(t *testing.T) {
 
 func TestSetupDatabase(t *testing.T) {
 	tmpDB := "test_temp.db"
-	defer os.Remove(tmpDB)
+	defer func() { _ = os.Remove(tmpDB) }()
 
 	db, err := sql.Open("sqlite3", tmpDB)
 	if err != nil {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	setupDatabase(db)
 
@@ -55,7 +55,7 @@ func TestSetupDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to query table info: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	expectedColumns := map[string]bool{
 		"id":        false,
@@ -124,13 +124,13 @@ func TestMetaStruct(t *testing.T) {
 
 func TestDatabaseInsert(t *testing.T) {
 	tmpDB := "test_insert.db"
-	defer os.Remove(tmpDB)
+	defer func() { _ = os.Remove(tmpDB) }()
 
 	db, err := sql.Open("sqlite3", tmpDB)
 	if err != nil {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	setupDatabase(db)
 

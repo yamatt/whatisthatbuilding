@@ -34,7 +34,9 @@ func main() {
 		},
 	}
 	cmd.Flags().IntVar(&workers, "workers", 0, "Number of CPU workers to use (0 = auto-detect)")
-	cmd.Execute()
+	if err := cmd.Execute(); err != nil {
+		log.Fatalf("command execution failed: %v", err)
+	}
 }
 
 func extractBuildings(pbfPath string, dbPath string, workers int) {
@@ -43,7 +45,11 @@ func extractBuildings(pbfPath string, dbPath string, workers int) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("error closing database: %v", err)
+		}
+	}()
 
 	setupDatabase(db)
 
@@ -60,7 +66,9 @@ func extractBuildings(pbfPath string, dbPath string, workers int) {
 	fmt.Println("Starting Pass 1: Scanning for tall buildings...")
 	f, _ := os.Open(pbfPath)
 	d := osmpbf.NewDecoder(f)
-	d.Start(workers)
+	if err := d.Start(workers); err != nil {
+		log.Fatalf("failed to start decoder: %v", err)
+	}
 
 	for {
 		v, err := d.Decode()
@@ -93,14 +101,18 @@ func extractBuildings(pbfPath string, dbPath string, workers int) {
 			}
 		}
 	}
-	f.Close()
+	if err := f.Close(); err != nil {
+		log.Printf("error closing file: %v", err)
+	}
 	fmt.Printf("Found %d tall buildings.\n", len(watchlist))
 
 	// --- PASS 2: Collect Coordinates (Nodes & Peaks) ---
 	fmt.Println("Starting Pass 2: Extracting locations...")
 	f, _ = os.Open(pbfPath)
 	d = osmpbf.NewDecoder(f)
-	d.Start(workers)
+	if err := d.Start(workers); err != nil {
+		log.Fatalf("failed to start decoder: %v", err)
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -151,8 +163,12 @@ func extractBuildings(pbfPath string, dbPath string, workers int) {
 
 			// Periodic commits for batching
 			if insertCount%batchSize == 0 && insertCount > 0 {
-				stmt.Close()
-				tx.Commit()
+				if err := stmt.Close(); err != nil {
+					log.Printf("error closing statement: %v", err)
+				}
+				if err := tx.Commit(); err != nil {
+					log.Printf("error committing transaction: %v", err)
+				}
 				tx, err = db.Begin()
 				if err != nil {
 					log.Fatalf("Failed to start transaction: %v", err)
@@ -164,15 +180,25 @@ func extractBuildings(pbfPath string, dbPath string, workers int) {
 			}
 		}
 	}
-	stmt.Close()
-	tx.Commit()
-	f.Close()
+	if err := stmt.Close(); err != nil {
+		log.Printf("error closing statement: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		log.Printf("error committing transaction: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		log.Printf("error closing file: %v", err)
+	}
 	fmt.Printf("Inserted %d features.\n", insertCount)
 
 	// Checkpoint WAL and clean up temporary files
 	fmt.Println("Consolidating database...")
-	db.Exec("PRAGMA wal_checkpoint(TRUNCATE);")
-	db.Exec("VACUUM;")
+	if _, err := db.Exec("PRAGMA wal_checkpoint(TRUNCATE);"); err != nil {
+		log.Printf("error during wal checkpoint: %v", err)
+	}
+	if _, err := db.Exec("VACUUM;"); err != nil {
+		log.Printf("error during vacuum: %v", err)
+	}
 
 	fmt.Println("Done! Saved to", dbPath)
 }
