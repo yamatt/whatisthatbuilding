@@ -2,7 +2,7 @@ version: 2
 
 before:
   hooks:
-    - go mod tidy
+    - go -C ./src/tooling/extract mod tidy
 
 builds:
   - id: tall-extractor
@@ -19,7 +19,7 @@ builds:
       - -s -w
 
 archives:
-  - format: tar.gz
+  - formats: ["tar.gz"]
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -46,4 +46,4 @@ release:
     owner: yamatt
     name: whatisthatbuilding
   draft: false
-  prerelease: auto
+  prerelease: "false"
