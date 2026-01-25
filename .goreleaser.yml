@@ -6,7 +6,7 @@ before:
 
 builds:
   - id: tall-extractor
-    main: ./src/tooling/extract
+    dir: ./src/tooling/extract
     binary: tall-extractor
     env:
       - CGO_ENABLED=1
