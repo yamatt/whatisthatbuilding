@@ -145,3 +145,4 @@ vite.config.ts.timestamp-*
 *.db
 
 tall-extractor
+manifest.json
