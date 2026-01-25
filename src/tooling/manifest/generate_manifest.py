@@ -16,7 +16,9 @@ def parse_bbox(pbf_path: str):
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(f"failed to read bbox via osmium: {exc}") from exc
 
-    parts = output.split(",")
+    without_brackets = output[1:-1]
+
+    parts = without_brackets.split(",")
     if len(parts) != 4:
         raise ValueError(f"unexpected bbox format: '{output}'")
 
