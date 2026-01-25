@@ -4,6 +4,11 @@ export class DatabaseManager {
     MANIFEST_URL = "https://pub-4cb9b1aa20554a8fbd8ea99a0a2eef5c.r2.dev/manifest.json";
     R2_BASE_URL = "https://pub-4cb9b1aa20554a8fbd8ea99a0a2eef5c.r2.dev/";
     CACHE_NAME = "whatisthatbuilding-db-v1";
+    DEFAULT_SEARCH_RADIUS = 0.10; // degrees (~11km at equator)
+    MIN_HEIGHT_METERS = 30;
+    MIN_LEVELS = 5;
+    METERS_PER_LEVEL = 3;
+    MAX_BUILDINGS_RETURNED = 20;
     
     constructor(latitude, longitude) {
         this.latitude = latitude;
@@ -86,7 +91,7 @@ export class DatabaseManager {
         return { region: dbInfo.id, db };
     }
 
-    queryBuildingsInDatabase(db, maxDistance = 0.10) {
+    queryBuildingsInDatabase(db, maxDistance = this.DEFAULT_SEARCH_RADIUS) {
         const minLat = this.latitude - maxDistance;
         const maxLat = this.latitude + maxDistance;
         const minLon = this.longitude - maxDistance;
@@ -97,20 +102,20 @@ export class DatabaseManager {
             FROM features
             WHERE latitude BETWEEN ? AND ?
               AND longitude BETWEEN ? AND ?
-              AND (height > 30 OR levels > 5)
+              AND (height > ? OR levels > ?)
             ORDER BY height DESC
         `;
 
         const results = [];
         try {
             const stmt = db.prepare(query);
-            stmt.bind([minLat, maxLat, minLon, maxLon]);
+            stmt.bind([minLat, maxLat, minLon, maxLon, this.MIN_HEIGHT_METERS, this.MIN_LEVELS]);
             
             while (stmt.step()) {
                 const row = stmt.getAsObject();
                 results.push({
                     name: row.name || "Building",
-                    height: row.height || (row.levels * 3) || 0,
+                    height: row.height || (row.levels * this.METERS_PER_LEVEL) || 0,
                     lat: row.latitude,
                     lon: row.longitude,
                     type: row.type
@@ -176,15 +181,15 @@ export class DatabaseManager {
             )
         }));
 
-        // Get top 20 tallest buildings
-        const top20 = buildingsWithBearings
+        // Get top tallest buildings
+        const topBuildings = buildingsWithBearings
             .sort((a, b) => b.height - a.height)
-            .slice(0, 20);
+            .slice(0, this.MAX_BUILDINGS_RETURNED);
 
-        console.log(`Found ${allBuildings.length} buildings total, returning top 20:`,
-            top20.map(b => `${b.name} (${b.height}m) @ ${b.bearing.toFixed(1)}°`).join(', '));
+        console.log(`Found ${allBuildings.length} buildings total, returning top ${this.MAX_BUILDINGS_RETURNED}:`,
+            topBuildings.map(b => `${b.name} (${b.height}m) @ ${b.bearing.toFixed(1)}°`).join(', '));
 
-        return top20;
+        return topBuildings;
     }
 
     cleanup() {
