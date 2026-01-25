@@ -21,13 +21,18 @@ export class DatabaseManager {
 
     async downloadManifest() {
         console.log("Downloading manifest from:", this.MANIFEST_URL);
-        const response = await fetch(this.MANIFEST_URL);
-        if (!response.ok) {
-            throw new Error(`Failed to download manifest: ${response.statusText}`);
+        try {
+            const response = await fetch(this.MANIFEST_URL);
+            if (!response.ok) {
+                throw new Error(`Failed to download manifest: ${response.statusText}`);
+            }
+            const manifest = await response.json();
+            console.log("Manifest downloaded:", manifest);
+            return manifest;
+        } catch (error) {
+            console.error("Error downloading manifest:", error);
+            throw new Error(`Unable to download manifest from ${this.MANIFEST_URL}. The database may not be available yet.`);
         }
-        const manifest = await response.json();
-        console.log("Manifest downloaded:", manifest);
-        return manifest;
     }
 
     isLocationInBoundingBox(bbox) {

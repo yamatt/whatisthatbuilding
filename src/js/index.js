@@ -20,14 +20,19 @@ window.addEventListener('DOMContentLoaded', async () => {
         const compass = new Compass();
         await compass.start();
 
-        const databaseManager = new DatabaseManager(latitude, longitude);
-        const buildings = await databaseManager.getBuildings();
+        try {
+            const databaseManager = new DatabaseManager(latitude, longitude);
+            const buildings = await databaseManager.getBuildings();
 
-        const hud = new Hud("hud", buildings, () => compass.heading);
+            const hud = new Hud("hud", buildings, () => compass.heading);
 
-        hud.getHeading = () => compass.heading;
+            hud.getHeading = () => compass.heading;
 
-        hud.start();
+            hud.start();
+        } catch (error) {
+            console.error("Error loading buildings:", error);
+            errors.addError(`Failed to load buildings: ${error.message}`);
+        }
     });
 });
 
