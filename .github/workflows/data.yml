@@ -8,6 +8,7 @@ on:
     paths:
       - src/data/osmium-filter.ini
       - .github/workflows/data.yml
+      - src/tooling/manifest/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
