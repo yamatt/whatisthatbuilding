@@ -79,7 +79,7 @@ jobs:
       - name: Create checksums
         run: |
           cd dist
-          sha256sum tall-extractor_Linux_* > checksums.txt
+          sha256sum tall-extractor_Linux_x86_64 > checksums.txt
           cat checksums.txt
 
       - name: Create GitHub Release
