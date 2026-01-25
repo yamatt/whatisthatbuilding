@@ -10,7 +10,7 @@ import sys
 def parse_bbox(pbf_path: str):
     try:
         output = subprocess.check_output(
-            ["osmium", "fileinfo", "--get", "header.bounds", pbf_path],
+            ["osmium", "fileinfo", "--get", "header.boxes", pbf_path],
             text=True,
         ).strip()
     except subprocess.CalledProcessError as exc:
