@@ -40,8 +40,9 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4"
           command: |
-            r2 object put "${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}/test.db" --file tall-extractor
+            r2 object put --remote "${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}/test.db" --file tall-extractor
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -89,8 +90,9 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4"
           command: |
-            r2 object put "${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}/${{ matrix.region.id }}.db" --file region.db
+            r2 object put --remote ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}/${{ matrix.region.id }}.db --file region.db
 
   aggregate-manifest:
     runs-on: ubuntu-latest
@@ -117,5 +119,6 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4"
           command: |
-            r2 object put "${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}/manifest.json" --file manifest.json
+            r2 object put --remote ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}/manifest.json --file manifest.json
