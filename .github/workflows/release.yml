@@ -76,9 +76,6 @@ jobs:
           # Linux x86_64
           GOOS=linux GOARCH=amd64 go build -C src/tooling/extract -ldflags "-s -w" -o ../../dist/tall-extractor_Linux_x86_64
 
-          # Linux ARM64
-          GOOS=linux GOARCH=arm64 go build -C src/tooling/extract -ldflags "-s -w" -o ../../dist/tall-extractor_Linux_arm64
-
       - name: Create checksums
         run: |
           cd dist
