@@ -50,7 +50,7 @@ def main():
     updated_at = datetime.now().isoformat()
 
     manifest = {
-        "id": f"{args.region_id}-latest",
+        "id": f"{args.region_id}",
         "region": args.region_id,
         "bbox": {
             "minLon": min_lon,
@@ -59,7 +59,7 @@ def main():
             "maxLat": max_lat,
         },
         "db": {
-            "object": f"{args.region_id}-latest.db",
+            "object": f"{args.region_id}.db",
             "size_bytes": size_bytes,
         },
         "updated_at": updated_at,
