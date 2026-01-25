@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import argparse
-import datetime
+from datetime import datetime
 import json
 import os
 import subprocess
@@ -45,7 +45,7 @@ def main():
 
     min_lon, min_lat, max_lon, max_lat = parse_bbox(args.pbf)
     size_bytes = os.path.getsize(args.db)
-    updated_at = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    updated_at = datetime.now().isoformat()
 
     manifest = {
         "id": f"{args.region_id}-latest",
