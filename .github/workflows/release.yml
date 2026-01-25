@@ -74,20 +74,13 @@ jobs:
           mkdir -p dist
 
           # Linux x86_64
-          GOOS=linux GOARCH=amd64 go build -C src/tooling/extract -ldflags "-s -w" -o ../../dist/tall-extractor_Linux_x86_64
-
-      - name: Create checksums
-        run: |
-          cd dist
-          sha256sum tall-extractor_Linux_x86_64 > checksums.txt
-          cat checksums.txt
+          GOOS=linux GOARCH=amd64 go build -C src/tooling/extract -ldflags "-s -w" -o ../../dist/../tall-extractor_Linux_x86_64
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             dist/tall-extractor_Linux_*
-            dist/checksums.txt
           tag_name: ${{ env.RELEASE_TAG || github.ref_name }}
           draft: false
           prerelease: false
