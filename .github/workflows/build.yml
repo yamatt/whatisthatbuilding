@@ -6,7 +6,8 @@ on:
       - "main"
     paths:
       - build.yml
-      - src/site/**
+      - src/js/**
+      - src/static/**
       - package.json
       - package-lock.json
       - webpack.config.js
