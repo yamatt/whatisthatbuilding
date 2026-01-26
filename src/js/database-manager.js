@@ -1,15 +1,15 @@
 import SPL from 'spl.js';
 
 export class DatabaseManager {
-    MANIFEST_URL = "https://pub-4cb9b1aa20554a8fbd8ea99a0a2eef5c.r2.dev/manifest.json";
-    R2_BASE_URL = "https://pub-4cb9b1aa20554a8fbd8ea99a0a2eef5c.r2.dev/";
+    MANIFEST_URL = "https://pub-6c56489c6f02474bafaba0f1b7bb961d.r2.dev/manifest.json";
+    R2_BASE_URL = "https://pub-6c56489c6f02474bafaba0f1b7bb961d.r2.dev/";
     CACHE_NAME = "whatisthatbuilding-db-v1";
     DEFAULT_SEARCH_RADIUS = 0.10; // degrees (~11km at equator)
     MIN_HEIGHT_METERS = 30;
     MIN_LEVELS = 5;
     METERS_PER_LEVEL = 3;
     MAX_BUILDINGS_RETURNED = 20;
-    
+
     constructor(latitude, longitude) {
         this.latitude = latitude;
         this.longitude = longitude;
@@ -67,10 +67,10 @@ export class DatabaseManager {
     async downloadAndCacheDatabase(dbInfo) {
         const cache = await caches.open(this.CACHE_NAME);
         const dbUrl = `${this.R2_BASE_URL}${dbInfo.db.object}`;
-        
+
         console.log(`Checking cache for database: ${dbInfo.id}`);
         let response = await cache.match(dbUrl);
-        
+
         if (response) {
             console.log(`Database ${dbInfo.id} found in cache`);
         } else {
@@ -82,10 +82,10 @@ export class DatabaseManager {
             await cache.put(dbUrl, response.clone());
             console.log(`Database ${dbInfo.id} cached successfully`);
         }
-        
+
         const arrayBuffer = await response.arrayBuffer();
         const db = this.spl.db(new Uint8Array(arrayBuffer));
-        
+
         return { region: dbInfo.id, db };
     }
 
@@ -109,7 +109,7 @@ export class DatabaseManager {
             const stmt = await db.prepare(query);
             const resultSet = await stmt.exec([minLat, maxLat, minLon, maxLon, this.MIN_HEIGHT_METERS, this.MIN_LEVELS]);
             const rows = resultSet.get.objs;
-            
+
             for (const row of rows) {
                 results.push({
                     name: row.name || "Building",
@@ -119,7 +119,7 @@ export class DatabaseManager {
                     type: row.type
                 });
             }
-            
+
             await stmt.finalize();
         } catch (error) {
             console.error("Error querying database:", error);
@@ -156,7 +156,7 @@ export class DatabaseManager {
         }
 
         // Download and cache relevant databases
-        const dbPromises = relevantRegions.map(region => 
+        const dbPromises = relevantRegions.map(region =>
             this.downloadAndCacheDatabase(region)
         );
         this.databases = await Promise.all(dbPromises);
