@@ -1,10 +1,14 @@
 export class Hud {
     FOV_DEGREES = 60;
+    HEADING_DEADZONE = 2; // Ignore changes smaller than 2 degrees
+    HEADING_SMOOTHING = 0.15; // Smooth heading updates (0 = no smoothing, 1 = instant)
 
     constructor(canvas_id, buildings, getHeading) {
         this.canvas_id = canvas_id;
         this.buildings = buildings;
         this.getHeading = getHeading;
+        this.smoothedHeading = 0;
+        this.lastRawHeading = 0;
     }
 
     get canvas() {
@@ -41,8 +45,27 @@ export class Hud {
         return window.innerHeight / 2;
     }
 
+    getSmoothedHeading() {
+        const rawHeading = this.getHeading ? this.getHeading() : 0;
+
+        // Calculate shortest angular distance
+        let delta = ((rawHeading - this.lastRawHeading + 540) % 360) - 180;
+
+        // Apply deadzone - ignore small changes
+        if (Math.abs(delta) < this.HEADING_DEADZONE) {
+            return this.smoothedHeading;
+        }
+
+        // Smooth the heading using exponential moving average
+        delta = ((rawHeading - this.smoothedHeading + 540) % 360) - 180;
+        this.smoothedHeading = (this.smoothedHeading + delta * this.HEADING_SMOOTHING + 360) % 360;
+        this.lastRawHeading = rawHeading;
+
+        return this.smoothedHeading;
+    }
+
     drawMarker(building) {
-        const heading = this.getHeading ? this.getHeading() : 0;
+        const heading = this.getSmoothedHeading();
 
         const relativeBearing =
             ((building.bearing - heading + 540) % 360) - 180;
