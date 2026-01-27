@@ -91,10 +91,12 @@ export class DatabaseManager {
     }
 
     async queryBuildingsInDatabase(db, maxDistance = this.DEFAULT_SEARCH_RADIUS) {
-        const minLat = this.latitude - maxDistance;
-        const maxLat = this.latitude + maxDistance;
-        const minLon = this.longitude - maxDistance;
-        const maxLon = this.longitude + maxDistance;
+        // Use a larger bounding box to fetch candidates, then filter by distance
+        const searchRadius = maxDistance * 1.5; // Get extra candidates to account for diagonal distance
+        const minLat = this.latitude - searchRadius;
+        const maxLat = this.latitude + searchRadius;
+        const minLon = this.longitude - searchRadius;
+        const maxLon = this.longitude + searchRadius;
 
         const query = `
             SELECT name, type, height, levels, latitude, longitude
@@ -102,12 +104,12 @@ export class DatabaseManager {
             WHERE latitude BETWEEN ? AND ?
               AND longitude BETWEEN ? AND ?
               AND (height > ? OR levels > ?)
-            ORDER BY height DESC
         `;
 
         const results = [];
         try {
             console.log(`Executing query with bounds: lat(${minLat}, ${maxLat}), lon(${minLon}, ${maxLon})`);
+            console.log(`Filtering for radius: ${maxDistance} degrees`);
             console.log(`Database object:`, db);
             console.log(`Database type:`, typeof db);
             console.log(`Database prepare method:`, typeof db.prepare);
@@ -118,23 +120,56 @@ export class DatabaseManager {
 
             while (stmt.step()) {
                 const row = stmt.getAsObject();
-                results.push({
-                    name: row.name || "Building",
-                    height: row.height || (row.levels * this.METERS_PER_LEVEL) || 0,
-                    lat: row.latitude,
-                    lon: row.longitude,
-                    type: row.type
-                });
+
+                // Calculate actual distance from user location
+                const distance = this.calculateDistance(
+                    this.latitude,
+                    this.longitude,
+                    row.latitude,
+                    row.longitude
+                );
+
+                // Only include if within radius
+                if (distance <= maxDistance) {
+                    results.push({
+                        name: row.name || "Building",
+                        height: row.height || (row.levels * this.METERS_PER_LEVEL) || 0,
+                        lat: row.latitude,
+                        lon: row.longitude,
+                        type: row.type,
+                        distance: distance
+                    });
+                }
             }
 
             stmt.free();
-            console.log(`Query returned ${results.length} buildings`);
+            console.log(`Query returned ${results.length} buildings within radius`);
         } catch (error) {
             console.error("Error querying database:", error);
             throw error;
         }
 
         return results;
+    }
+
+    calculateDistance(lat1, lon1, lat2, lon2) {
+        // Haversine formula to calculate distance between two points on Earth
+        const R = 6371; // Earth's radius in kilometers
+        const toRad = deg => deg * Math.PI / 180;
+
+        const φ1 = toRad(lat1);
+        const φ2 = toRad(lat2);
+        const Δφ = toRad(lat2 - lat1);
+        const Δλ = toRad(lon2 - lon1);
+
+        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                  Math.cos(φ1) * Math.cos(φ2) *
+                  Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distance = R * c;
+
+        // Convert to degrees (approximate)
+        return distance / 111; // 1 degree ≈ 111 km
     }
 
     bearingDegrees(position_lat, position_lon, building_lat, building_lon) {
