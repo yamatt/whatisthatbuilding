@@ -3,7 +3,9 @@ import SPL from 'spl.js';
 export class DatabaseManager {
     MANIFEST_URL = "https://pub-6c56489c6f02474bafaba0f1b7bb961d.r2.dev/manifest.json";
     R2_BASE_URL = "https://pub-6c56489c6f02474bafaba0f1b7bb961d.r2.dev/";
-    CACHE_NAME = "whatisthatbuilding-db-v1";
+    DB_NAME = "whatisthatbuilding";
+    DB_VERSION = 1;
+    DB_STORE_NAME = "databases";
     DEFAULT_SEARCH_RADIUS = 0.10; // degrees (~11km at equator)
     MIN_HEIGHT_METERS = 30;
     MIN_LEVELS = 5;
@@ -15,11 +17,43 @@ export class DatabaseManager {
         this.longitude = longitude;
         this.spl = null;
         this.databases = [];
+        this.db = null;
     }
 
     async initialize() {
         // Initialize spl.js
         this.spl = await SPL();
+
+        // Initialize IndexedDB
+        await this.initIndexedDB();
+    }
+
+    async initIndexedDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+
+            request.onerror = () => {
+                console.error("Failed to open IndexedDB:", request.error);
+                reject(request.error);
+            };
+
+            request.onsuccess = () => {
+                this.db = request.result;
+                console.log("IndexedDB opened successfully");
+                resolve();
+            };
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+
+                // Create object store for databases if it doesn't exist
+                if (!db.objectStoreNames.contains(this.DB_STORE_NAME)) {
+                    const objectStore = db.createObjectStore(this.DB_STORE_NAME, { keyPath: "id" });
+                    objectStore.createIndex("updated_at", "updated_at", { unique: false });
+                    console.log("Created object store:", this.DB_STORE_NAME);
+                }
+            };
+        });
     }
 
     async downloadManifest() {
@@ -65,28 +99,81 @@ export class DatabaseManager {
     }
 
     async downloadAndCacheDatabase(dbInfo) {
-        const cache = await caches.open(this.CACHE_NAME);
         const dbUrl = `${this.R2_BASE_URL}${dbInfo.db.object}`;
+        const cacheKey = dbInfo.id;
 
-        console.log(`Checking cache for database: ${dbInfo.id}`);
-        let response = await cache.match(dbUrl);
+        console.log(`Checking IndexedDB for database: ${dbInfo.id}`);
 
-        if (response) {
-            console.log(`Database ${dbInfo.id} found in cache`);
+        // Try to get from IndexedDB
+        const cachedData = await this.getFromIndexedDB(cacheKey);
+        let arrayBuffer;
+
+        if (cachedData && cachedData.updated_at === dbInfo.updated_at) {
+            console.log(`Database ${dbInfo.id} found in IndexedDB (updated: ${cachedData.updated_at})`);
+            arrayBuffer = cachedData.data;
         } else {
-            console.log(`Downloading database ${dbInfo.id} from ${dbUrl}`);
-            response = await fetch(dbUrl);
+            if (cachedData) {
+                console.log(`Database ${dbInfo.id} is outdated, downloading new version`);
+            } else {
+                console.log(`Downloading database ${dbInfo.id} from ${dbUrl}`);
+            }
+
+            const response = await fetch(dbUrl);
             if (!response.ok) {
                 throw new Error(`Failed to download database ${dbInfo.id}: ${response.statusText}`);
             }
-            await cache.put(dbUrl, response.clone());
-            console.log(`Database ${dbInfo.id} cached successfully`);
+
+            arrayBuffer = await response.arrayBuffer();
+
+            // Store in IndexedDB
+            await this.saveToIndexedDB({
+                id: cacheKey,
+                data: arrayBuffer,
+                updated_at: dbInfo.updated_at,
+                size: arrayBuffer.byteLength
+            });
+            console.log(`Database ${dbInfo.id} stored in IndexedDB (${arrayBuffer.byteLength} bytes)`);
         }
 
-        const arrayBuffer = await response.arrayBuffer();
+        console.log(`Creating database instance for ${dbInfo.id}, size: ${arrayBuffer.byteLength} bytes`);
         const db = this.spl.db(new Uint8Array(arrayBuffer));
+        console.log(`Database instance created:`, db);
 
         return { region: dbInfo.id, db };
+    }
+
+    async getFromIndexedDB(key) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.DB_STORE_NAME], "readonly");
+            const objectStore = transaction.objectStore(this.DB_STORE_NAME);
+            const request = objectStore.get(key);
+
+            request.onsuccess = () => {
+                resolve(request.result);
+            };
+
+            request.onerror = () => {
+                console.error("Failed to read from IndexedDB:", request.error);
+                reject(request.error);
+            };
+        });
+    }
+
+    async saveToIndexedDB(data) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.DB_STORE_NAME], "readwrite");
+            const objectStore = transaction.objectStore(this.DB_STORE_NAME);
+            const request = objectStore.put(data);
+
+            request.onsuccess = () => {
+                resolve();
+            };
+
+            request.onerror = () => {
+                console.error("Failed to write to IndexedDB:", request.error);
+                reject(request.error);
+            };
+        });
     }
 
     async queryBuildingsInDatabase(db, maxDistance = this.DEFAULT_SEARCH_RADIUS) {
@@ -106,11 +193,17 @@ export class DatabaseManager {
 
         const results = [];
         try {
-            const stmt = await db.prepare(query);
-            const resultSet = await stmt.exec([minLat, maxLat, minLon, maxLon, this.MIN_HEIGHT_METERS, this.MIN_LEVELS]);
-            const rows = resultSet.get.objs;
+            console.log(`Executing query with bounds: lat(${minLat}, ${maxLat}), lon(${minLon}, ${maxLon})`);
+            console.log(`Database object:`, db);
+            console.log(`Database type:`, typeof db);
+            console.log(`Database prepare method:`, typeof db.prepare);
 
-            for (const row of rows) {
+            // spl.js/sql.js API is synchronous
+            const stmt = db.prepare(query);
+            stmt.bind([minLat, maxLat, minLon, maxLon, this.MIN_HEIGHT_METERS, this.MIN_LEVELS]);
+
+            while (stmt.step()) {
+                const row = stmt.getAsObject();
                 results.push({
                     name: row.name || "Building",
                     height: row.height || (row.levels * this.METERS_PER_LEVEL) || 0,
@@ -120,9 +213,11 @@ export class DatabaseManager {
                 });
             }
 
-            await stmt.finalize();
+            stmt.free();
+            console.log(`Query returned ${results.length} buildings`);
         } catch (error) {
             console.error("Error querying database:", error);
+            throw error;
         }
 
         return results;
