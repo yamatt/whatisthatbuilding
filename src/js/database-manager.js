@@ -3,9 +3,7 @@ import SPL from 'spl.js';
 export class DatabaseManager {
     MANIFEST_URL = "https://pub-6c56489c6f02474bafaba0f1b7bb961d.r2.dev/manifest.json";
     R2_BASE_URL = "https://pub-6c56489c6f02474bafaba0f1b7bb961d.r2.dev/";
-    DB_NAME = "whatisthatbuilding";
-    DB_VERSION = 1;
-    DB_STORE_NAME = "databases";
+    CACHE_NAME = "whatisthatbuilding-db-v1";
     DEFAULT_SEARCH_RADIUS = 0.10; // degrees (~11km at equator)
     MIN_HEIGHT_METERS = 30;
     MIN_LEVELS = 5;
@@ -17,46 +15,11 @@ export class DatabaseManager {
         this.longitude = longitude;
         this.spl = null;
         this.databases = [];
-        this.db = null;
     }
 
     async initialize() {
         // Initialize spl.js
         this.spl = await SPL();
-
-        // Initialize IndexedDB
-        await this.initIndexedDB();
-    }
-
-    async initIndexedDB() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
-
-            request.onerror = () => {
-                console.error("Failed to open IndexedDB:", request.error);
-                reject(request.error);
-            };
-
-            request.onsuccess = () => {
-                this.db = request.result;
-                console.log("IndexedDB opened successfully");
-                resolve();
-            };
-
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-
-                // Create object store for databases if it doesn't exist
-                if (!db.objectStoreNames.contains(this.DB_STORE_NAME)) {
-                    const objectStore = db.createObjectStore(this.DB_STORE_NAME, { keyPath: "id" });
-                    objectStore.createIndex("updated_at", "updated_at", { unique: false });
-                    console.log("Created object store:", this.DB_STORE_NAME);
-                }
-            };
-        });
-    }
-
-    async downloadManifest() {
         console.log("Downloading manifest from:", this.MANIFEST_URL);
         try {
             const response = await fetch(this.MANIFEST_URL);
@@ -100,80 +63,31 @@ export class DatabaseManager {
 
     async downloadAndCacheDatabase(dbInfo) {
         const dbUrl = `${this.R2_BASE_URL}${dbInfo.db.object}`;
-        const cacheKey = dbInfo.id;
+        const cache = await caches.open(this.CACHE_NAME);
 
-        console.log(`Checking IndexedDB for database: ${dbInfo.id}`);
+        console.log(`Checking cache for database: ${dbInfo.id}`);
+        let response = await cache.match(dbUrl);
 
-        // Try to get from IndexedDB
-        const cachedData = await this.getFromIndexedDB(cacheKey);
-        let arrayBuffer;
-
-        if (cachedData && cachedData.updated_at === dbInfo.updated_at) {
-            console.log(`Database ${dbInfo.id} found in IndexedDB (updated: ${cachedData.updated_at})`);
-            arrayBuffer = cachedData.data;
-        } else {
-            if (cachedData) {
-                console.log(`Database ${dbInfo.id} is outdated, downloading new version`);
-            } else {
-                console.log(`Downloading database ${dbInfo.id} from ${dbUrl}`);
-            }
-
-            const response = await fetch(dbUrl);
+        if (!response) {
+            console.log(`Downloading database ${dbInfo.id} from ${dbUrl}`);
+            response = await fetch(dbUrl);
             if (!response.ok) {
                 throw new Error(`Failed to download database ${dbInfo.id}: ${response.statusText}`);
             }
 
-            arrayBuffer = await response.arrayBuffer();
-
-            // Store in IndexedDB
-            await this.saveToIndexedDB({
-                id: cacheKey,
-                data: arrayBuffer,
-                updated_at: dbInfo.updated_at,
-                size: arrayBuffer.byteLength
-            });
-            console.log(`Database ${dbInfo.id} stored in IndexedDB (${arrayBuffer.byteLength} bytes)`);
+            // Cache the response for future use
+            await cache.put(dbUrl, response.clone());
+            console.log(`Database ${dbInfo.id} cached successfully`);
+        } else {
+            console.log(`Database ${dbInfo.id} found in cache`);
         }
 
+        const arrayBuffer = await response.arrayBuffer();
         console.log(`Creating database instance for ${dbInfo.id}, size: ${arrayBuffer.byteLength} bytes`);
-        const db = this.spl.db(new Uint8Array(arrayBuffer));
-        console.log(`Database instance created:`, db);
+        const sqliteDb = this.spl.db(new Uint8Array(arrayBuffer));
+        console.log(`Database instance created:`, sqliteDb);
 
-        return { region: dbInfo.id, db };
-    }
-
-    async getFromIndexedDB(key) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.DB_STORE_NAME], "readonly");
-            const objectStore = transaction.objectStore(this.DB_STORE_NAME);
-            const request = objectStore.get(key);
-
-            request.onsuccess = () => {
-                resolve(request.result);
-            };
-
-            request.onerror = () => {
-                console.error("Failed to read from IndexedDB:", request.error);
-                reject(request.error);
-            };
-        });
-    }
-
-    async saveToIndexedDB(data) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.DB_STORE_NAME], "readwrite");
-            const objectStore = transaction.objectStore(this.DB_STORE_NAME);
-            const request = objectStore.put(data);
-
-            request.onsuccess = () => {
-                resolve();
-            };
-
-            request.onerror = () => {
-                console.error("Failed to write to IndexedDB:", request.error);
-                reject(request.error);
-            };
-        });
+        return { region: dbInfo.id, db: sqliteDb };
     }
 
     async queryBuildingsInDatabase(db, maxDistance = this.DEFAULT_SEARCH_RADIUS) {
