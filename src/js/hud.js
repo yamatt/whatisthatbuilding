@@ -47,11 +47,6 @@ export class Hud {
         const relativeBearing =
             ((building.bearing - heading + 540) % 360) - 180;
 
-        // Debug: Log every 60 frames (roughly once per second at 60fps)
-        if (Math.random() < 0.016 && building.name !== "Building") {
-            console.log(`${building.name}: bearing=${building.bearing.toFixed(1)}° heading=${heading.toFixed(1)}° relative=${relativeBearing.toFixed(1)}°`);
-        }
-
         // Outside field of view → don't draw
         if (Math.abs(relativeBearing) > this.FOV_DEGREES / 2) {
             return;

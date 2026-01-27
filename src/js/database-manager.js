@@ -4,7 +4,7 @@ export class DatabaseManager {
     MANIFEST_URL = "https://pub-6c56489c6f02474bafaba0f1b7bb961d.r2.dev/manifest.json";
     R2_BASE_URL = "https://pub-6c56489c6f02474bafaba0f1b7bb961d.r2.dev/";
     CACHE_NAME = "whatisthatbuilding-db-v1";
-    DEFAULT_SEARCH_RADIUS = 0.10; // degrees (~11km at equator)
+    DEFAULT_SEARCH_RADIUS = 25; // kilometers (~15 miles)
     MIN_HEIGHT_METERS = 30;
     MIN_LEVELS = 5;
     METERS_PER_LEVEL = 3;
@@ -86,67 +86,66 @@ export class DatabaseManager {
         }
 
         const arrayBuffer = await response.arrayBuffer();
-        console.log(`Creating database instance for ${dbInfo.id}, size: ${arrayBuffer.byteLength} bytes`);
-        const sqliteDb = this.spl.db(new Uint8Array(arrayBuffer));
-        console.log(`Database instance created:`, sqliteDb);
+        console.log(`Loading database ${dbInfo.id}, size: ${arrayBuffer.byteLength} bytes`);
+
+        // Create database from ArrayBuffer using spl.js
+        const sqliteDb = await this.spl.db(arrayBuffer);
+        console.log(`Database ${dbInfo.id} loaded successfully`);
 
         return { region: dbInfo.id, db: sqliteDb };
     }
 
     async queryBuildingsInDatabase(db, maxDistance = this.DEFAULT_SEARCH_RADIUS) {
-        // Use a larger bounding box to fetch candidates, then filter by distance
-        const searchRadius = maxDistance * 1.5; // Get extra candidates to account for diagonal distance
-        const minLat = this.latitude - searchRadius;
-        const maxLat = this.latitude + searchRadius;
-        const minLon = this.longitude - searchRadius;
-        const maxLon = this.longitude + searchRadius;
-
-        const query = `
-            SELECT name, type, height, levels, latitude, longitude
-            FROM features
-            WHERE latitude BETWEEN ? AND ?
-              AND longitude BETWEEN ? AND ?
-              AND (height > ? OR levels > ?)
-        `;
+        // Convert distance from km to degrees for bounding box (approximate)
+        const searchRadiusDegrees = (maxDistance / 111) * 2;
+        const minLat = this.latitude - searchRadiusDegrees;
+        const maxLat = this.latitude + searchRadiusDegrees;
+        const minLon = this.longitude - searchRadiusDegrees;
+        const maxLon = this.longitude + searchRadiusDegrees;
 
         const results = [];
         try {
-            console.log(`Executing query with bounds: lat(${minLat}, ${maxLat}), lon(${minLon}, ${maxLon})`);
-            console.log(`Filtering for radius: ${maxDistance} degrees`);
-            console.log(`Database object:`, db);
-            console.log(`Database type:`, typeof db);
-            console.log(`Database prepare method:`, typeof db.prepare);
+            console.log(`Querying database for location: (${this.latitude}, ${this.longitude}), radius: ${maxDistance} km`);
 
-            // spl.js/sql.js API is synchronous
-            const stmt = db.prepare(query);
-            stmt.bind([minLat, maxLat, minLon, maxLon, this.MIN_HEIGHT_METERS, this.MIN_LEVELS]);
+            // Query with actual location bounds
+            const query = `SELECT name, type, height, latitude, longitude FROM features WHERE latitude > ${minLat} AND latitude < ${maxLat} AND longitude > ${minLon} AND longitude < ${maxLon} AND height > ${this.MIN_HEIGHT_METERS}`;
 
-            while (stmt.step()) {
-                const row = stmt.getAsObject();
+            const queryResult = await db.exec(query).get.rows;
 
-                // Calculate actual distance from user location
-                const distance = this.calculateDistance(
-                    this.latitude,
-                    this.longitude,
-                    row.latitude,
-                    row.longitude
-                );
+            // Process results if any
+            if (queryResult && queryResult.length > 0) {
+                for (const row of queryResult) {
+                    const building = {
+                        name: row[0] || "Building",
+                        type: row[1],
+                        height: row[2],
+                        lat: row[3],
+                        lon: row[4]
+                    };
 
-                // Only include if within radius
-                if (distance <= maxDistance) {
-                    results.push({
-                        name: row.name || "Building",
-                        height: row.height || (row.levels * this.METERS_PER_LEVEL) || 0,
-                        lat: row.latitude,
-                        lon: row.longitude,
-                        type: row.type,
-                        distance: distance
-                    });
+                    // Calculate actual distance from user location (in kilometers)
+                    const distance = this.calculateDistance(
+                        this.latitude,
+                        this.longitude,
+                        building.lat,
+                        building.lon
+                    );
+
+                    // Only include if within radius
+                    if (distance <= maxDistance) {
+                        results.push({
+                            name: building.name,
+                            height: building.height || 0,
+                            lat: building.lat,
+                            lon: building.lon,
+                            type: building.type,
+                            distance: distance
+                        });
+                    }
                 }
             }
 
-            stmt.free();
-            console.log(`Query returned ${results.length} buildings within radius`);
+            console.log(`Found ${results.length} buildings within ${maxDistance} km`);
         } catch (error) {
             console.error("Error querying database:", error);
             throw error;
@@ -156,7 +155,7 @@ export class DatabaseManager {
     }
 
     calculateDistance(lat1, lon1, lat2, lon2) {
-        // Haversine formula to calculate distance between two points on Earth
+        // Haversine formula to calculate distance between two points on Earth (returns kilometers)
         const R = 6371; // Earth's radius in kilometers
         const toRad = deg => deg * Math.PI / 180;
 
@@ -171,8 +170,7 @@ export class DatabaseManager {
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         const distance = R * c;
 
-        // Convert to degrees (approximate)
-        return distance / 111; // 1 degree ≈ 111 km
+        return distance; // Distance in kilometers
     }
 
     bearingDegrees(position_lat, position_lon, building_lat, building_lon) {
