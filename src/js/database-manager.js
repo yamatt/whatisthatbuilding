@@ -20,6 +20,9 @@ export class DatabaseManager {
     async initialize() {
         // Initialize spl.js
         this.spl = await SPL();
+    }
+
+    async downloadManifest() {
         console.log("Downloading manifest from:", this.MANIFEST_URL);
         try {
             const response = await fetch(this.MANIFEST_URL);
