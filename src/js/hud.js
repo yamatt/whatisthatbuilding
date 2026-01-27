@@ -33,7 +33,36 @@ export class Hud {
 
     draw() {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.buildings.forEach((building, i) => this.drawMarker(building, i));
+
+        const heading = this.getSmoothedHeading();
+
+        // Collect visible buildings with their x positions
+        const visibleBuildings = [];
+        this.buildings.forEach((building, i) => {
+            const relativeBearing =
+                ((building.bearing - heading + 540) % 360) - 180;
+
+            // Check if in field of view
+            if (Math.abs(relativeBearing) <= this.FOV_DEGREES / 2) {
+                const pixelsPerDegree = window.innerWidth / this.FOV_DEGREES;
+                const x = this.screenCenterX + relativeBearing * pixelsPerDegree;
+                visibleBuildings.push({ building, x });
+            }
+        });
+
+        // Sort by height (tallest first) to position them top to bottom
+        visibleBuildings.sort((a, b) => (b.building.height || 0) - (a.building.height || 0));
+
+        // Assign y positions across middle 50% of screen
+        const screenTop = window.innerHeight * 0.25;
+        const screenBottom = window.innerHeight * 0.75;
+        const availableHeight = screenBottom - screenTop;
+
+        visibleBuildings.forEach((item, index) => {
+            const y = screenTop + (availableHeight / (visibleBuildings.length + 1)) * (index + 1);
+            this.drawMarker(item.building, item.x, y);
+        });
+
         requestAnimationFrame(() => this.draw());
     }
 
@@ -64,31 +93,24 @@ export class Hud {
         return this.smoothedHeading;
     }
 
-    drawMarker(building) {
-        const heading = this.getSmoothedHeading();
-
-        const relativeBearing =
-            ((building.bearing - heading + 540) % 360) - 180;
-
-        // Outside field of view → don't draw
-        if (Math.abs(relativeBearing) > this.FOV_DEGREES / 2) {
-            return;
-        }
-
-        const pixelsPerDegree = window.innerWidth / this.FOV_DEGREES;
-        const x =
-            this.screenCenterX + relativeBearing * pixelsPerDegree;
-        const y = this.screenCenterY - 40;
-
+    drawMarker(building, x, y) {
         this.context.globalAlpha = 1;
 
+        // Draw background box (taller for two lines)
         this.context.fillStyle = 'rgba(0,0,0,0.6)';
-        this.context.fillRect(x - 60, y - 24, 120, 32);
+        this.context.fillRect(x - 60, y - 32, 120, 48);
 
         this.context.fillStyle = 'white';
         this.context.font = '16px sans-serif';
         this.context.textAlign = 'center';
-        this.context.fillText(building.name, x, y);
+
+        // Draw height on first line if available
+        if (building.height && building.height > 0) {
+            this.context.fillText(`${Math.round(building.height)}m`, x, y - 8);
+            this.context.fillText(building.name, x, y + 12);
+        } else {
+            this.context.fillText(building.name, x, y);
+        }
     }
 
     start() {
