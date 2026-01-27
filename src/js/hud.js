@@ -1,7 +1,7 @@
 export class Hud {
     FOV_DEGREES = 60;
     HEADING_DEADZONE = 2; // Ignore changes smaller than 2 degrees
-    HEADING_SMOOTHING = 0.15; // Smooth heading updates (0 = no smoothing, 1 = instant)
+    HEADING_SMOOTHING = 0.3; // Smooth heading updates (0 = no smoothing, 1 = instant)
 
     constructor(canvas_id, buildings, getHeading) {
         this.canvas_id = canvas_id;
