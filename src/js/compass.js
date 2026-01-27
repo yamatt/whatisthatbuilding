@@ -1,6 +1,7 @@
 export class Compass {
     COMPASS_WEIGHT = 0.02;  // Low weight = trust gyro more for smoothness
     GYRO_WEIGHT = 0.98;
+    GYRO_DEADZONE = 2; // Ignore rotation rates smaller than 2 deg/s to prevent drift
 
     constructor() {
         this.heading = 0;
@@ -81,7 +82,12 @@ export class Compass {
 
         // Get rotation rate around vertical axis (alpha/z-axis)
         // Negative because clockwise rotation increases heading
-        const gyroRate = -(event.rotationRate.alpha || 0);
+        let gyroRate = -(event.rotationRate.alpha || 0);
+
+        // Apply deadzone to prevent drift from sensor noise
+        if (Math.abs(gyroRate) < this.GYRO_DEADZONE) {
+            gyroRate = 0;
+        }
 
         // Integrate gyroscope to get heading change
         const gyroHeading = (this.heading + gyroRate * dt + 360) % 360;
