@@ -220,9 +220,14 @@ export class Hud {
             }
         });
 
-        this.canvas.addEventListener('touchend', () => {
-            // If vertical swipe ended, trigger re-fetch
-            if (this.swipeDirection === 'vertical' && this.onRadiusChange) {
+        this.canvas.addEventListener('touchend', (e) => {
+            // Check if this was a tap (no swipe direction determined)
+            if (!this.swipeDirection) {
+                // Reset manual heading offset on tap
+                this.manualHeadingOffset = 0;
+                console.log('Manual heading offset reset');
+            } else if (this.swipeDirection === 'vertical' && this.onRadiusChange) {
+                // If vertical swipe ended, trigger re-fetch
                 this.onRadiusChange(this.buildingsManager.DEFAULT_SEARCH_RADIUS);
             }
             this.touchStartX = null;
