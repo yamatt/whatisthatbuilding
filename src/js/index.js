@@ -22,10 +22,19 @@ window.addEventListener('DOMContentLoaded', async () => {
 
         try {
             const databaseManager = new DatabaseManager(latitude, longitude);
-            const buildings = await databaseManager.getBuildings();
-            const buildingsManager = databaseManager.buildingsManager;
+            let buildings = await databaseManager.getBuildings();
 
-            const hud = new Hud("hud", buildings, () => compass.heading, buildingsManager);
+            const hud = new Hud("hud", buildings, () => compass.heading, databaseManager, async (newRadius) => {
+                console.log(`Radius changed to ${newRadius.toFixed(1)}km, re-fetching buildings...`);
+                try {
+                    buildings = await databaseManager.getBuildings();
+                    hud.buildings = buildings;
+                    hud.smoothedYPositions.clear(); // Reset smoothed positions
+                } catch (error) {
+                    console.error("Error re-fetching buildings:", error);
+                    errors.addError(`Failed to update buildings: ${error.message}`);
+                }
+            });
 
             hud.getHeading = () => compass.heading;
 

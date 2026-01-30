@@ -4,17 +4,21 @@ export class Hud {
     HEADING_SMOOTHING = 0.3; // Smooth heading updates (0 = no smoothing, 1 = instant)
     Y_POSITION_SMOOTHING = 0.15; // Smooth y position updates
 
-    constructor(canvas_id, buildings, getHeading, buildingsManager) {
+    constructor(canvas_id, buildings, getHeading, buildingsManager, onRadiusChange) {
         this.canvas_id = canvas_id;
         this.buildings = buildings;
         this.getHeading = getHeading;
         this.buildingsManager = buildingsManager;
+        this.onRadiusChange = onRadiusChange;
         this.smoothedHeading = 0;
         this.lastRawHeading = 0;
         this.smoothedYPositions = new Map(); // Track smoothed y positions per building
         this.manualHeadingOffset = 0; // Manual adjustment from swipe gestures
         this.touchStartX = null;
+        this.touchStartY = null;
         this.touchStartOffset = 0;
+        this.touchStartRadius = 0;
+        this.swipeDirection = null; // 'horizontal' or 'vertical'
     }
 
     get canvas() {
@@ -122,10 +126,7 @@ export class Hud {
     drawRadiusDisplay() {
         if (!this.buildingsManager) return;
 
-        const radiusMeters = this.buildingsManager.radiusMeters;
-        const radiusText = radiusMeters >= 1000
-            ? `${(radiusMeters / 1000).toFixed(1)}km`
-            : `${Math.round(radiusMeters)}m`;
+        const radiusMeters = this.buildingsManager.DEFAULT_SEARCH_RADIUS * 1000;
 
         this.context.fillStyle = 'white';
         this.context.font = '14px sans-serif';
@@ -182,26 +183,54 @@ export class Hud {
             this.touchStartOffset = this.manualHeadingOffset;
         });
 
+        this.canvas.addEvenY = e.touches[0].clientY;
+            this.touchStartOffset = this.manualHeadingOffset;
+            this.touchStartRadius = this.buildingsManager.DEFAULT_SEARCH_RADIUS;
+            this.swipeDirection = null;
+        });
+
         this.canvas.addEventListener('touchmove', (e) => {
-            if (this.touchStartX === null) return;
+            if (this.touchStartX === null || this.touchStartY === null) return;
             e.preventDefault();
 
             const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
             const deltaX = touchX - this.touchStartX;
+            const deltaY = touchY - this.touchStartY;
 
-            // Convert pixel movement to degrees (based on FOV)
-            const pixelsPerDegree = window.innerWidth / this.FOV_DEGREES;
-            const degreesOffset = deltaX / pixelsPerDegree;
+            // Determine swipe direction if not yet determined
+            if (!this.swipeDirection) {
+                if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+                    this.swipeDirection = Math.abs(deltaX) > Math.abs(deltaY) ? 'horizontal' : 'vertical';
+                }
+            }
 
-            this.manualHeadingOffset = this.touchStartOffset + degreesOffset;
+            if (this.swipeDirection === 'horizontal') {
+                // Horizontal swipe - adjust heading offset
+                const pixelsPerDegree = window.innerWidth / this.FOV_DEGREES;
+                const degreesOffset = deltaX / pixelsPerDegree;
+                this.manualHeadingOffset = this.touchStartOffset + degreesOffset;
+            } else if (this.swipeDirection === 'vertical') {
+                // Vertical swipe - adjust radius
+                // Swipe down = increase radius, swipe up = decrease radius
+                const radiusChangePerPixel = 0.05; // 50m per pixel
+                const radiusChange = -deltaY * radiusChangePerPixel; // negative because down is positive Y
+                const newRadius = Math.max(1, Math.min(100, this.touchStartRadius + radiusChange));
+                this.buildingsManager.DEFAULT_SEARCH_RADIUS = newRadius;
+            }
         });
 
         this.canvas.addEventListener('touchend', () => {
+            // If vertical swipe ended, trigger re-fetch
+            if (this.swipeDirection === 'vertical' && this.onRadiusChange) {
+                this.onRadiusChange(this.buildingsManager.DEFAULT_SEARCH_RADIUS);
+            }
             this.touchStartX = null;
+            this.touchStartY = null;
+            this.swipeDirection = null;
         });
 
         this.canvas.addEventListener('touchcancel', () => {
             this.touchStartX = null;
-        });
-    }
-}
+            this.touchStartY = null;
+            this.swipeDirection
