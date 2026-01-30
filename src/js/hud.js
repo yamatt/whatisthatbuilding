@@ -96,20 +96,36 @@ export class Hud {
     drawMarker(building, x, y) {
         this.context.globalAlpha = 1;
 
-        // Draw background box (taller for two lines)
+        // Draw background box (adjust for 3 lines if we have distance)
+        const hasHeight = building.height && building.height > 0;
+        const hasDistance = building.distance !== undefined;
+        const lineCount = (hasHeight ? 1 : 0) + 1 + (hasDistance ? 1 : 0);
+        const boxHeight = Math.max(48, lineCount * 20 + 8);
+
         this.context.fillStyle = 'rgba(0,0,0,0.6)';
-        this.context.fillRect(x - 60, y - 32, 120, 48);
+        this.context.fillRect(x - 60, y - boxHeight / 2, 120, boxHeight);
 
         this.context.fillStyle = 'white';
         this.context.font = '16px sans-serif';
         this.context.textAlign = 'center';
 
         // Draw height on first line if available
-        if (building.height && building.height > 0) {
-            this.context.fillText(`${Math.round(building.height)}m`, x, y - 8);
-            this.context.fillText(building.name, x, y + 12);
-        } else {
-            this.context.fillText(building.name, x, y);
+        let textY = y - (lineCount - 1) * 10;
+        if (hasHeight) {
+            this.context.fillText(`${Math.round(building.height)}m`, x, textY);
+            textY += 16;
+        }
+
+        // Draw building name
+        this.context.fillText(building.name, x, textY);
+        textY += 16;
+
+        // Draw distance if available
+        if (hasDistance) {
+            const distanceText = building.distance < 1
+                ? `${(building.distance * 1000).toFixed(0)}m`
+                : `${building.distance.toFixed(2)}km`;
+            this.context.fillText(distanceText, x, textY);
         }
     }
 
