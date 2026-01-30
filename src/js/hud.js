@@ -180,10 +180,7 @@ export class Hud {
     setupTouchHandlers() {
         this.canvas.addEventListener('touchstart', (e) => {
             this.touchStartX = e.touches[0].clientX;
-            this.touchStartOffset = this.manualHeadingOffset;
-        });
-
-        this.canvas.addEvenY = e.touches[0].clientY;
+            this.touchStartY = e.touches[0].clientY;
             this.touchStartOffset = this.manualHeadingOffset;
             this.touchStartRadius = this.buildingsManager.DEFAULT_SEARCH_RADIUS;
             this.swipeDirection = null;
@@ -233,4 +230,7 @@ export class Hud {
         this.canvas.addEventListener('touchcancel', () => {
             this.touchStartX = null;
             this.touchStartY = null;
-            this.swipeDirection
+            this.swipeDirection = null;
+        });
+    }
+}
