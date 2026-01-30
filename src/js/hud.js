@@ -2,6 +2,7 @@ export class Hud {
     FOV_DEGREES = 60;
     HEADING_DEADZONE = 5; // Ignore changes smaller than 2 degrees
     HEADING_SMOOTHING = 0.3; // Smooth heading updates (0 = no smoothing, 1 = instant)
+    Y_POSITION_SMOOTHING = 0.15; // Smooth y position updates
 
     constructor(canvas_id, buildings, getHeading, buildingsManager) {
         this.canvas_id = canvas_id;
@@ -10,6 +11,7 @@ export class Hud {
         this.buildingsManager = buildingsManager;
         this.smoothedHeading = 0;
         this.lastRawHeading = 0;
+        this.smoothedYPositions = new Map(); // Track smoothed y positions per building
     }
 
     get canvas() {
@@ -63,9 +65,26 @@ export class Hud {
         const availableHeight = screenBottom - screenTop;
 
         visibleBuildings.forEach((item, index) => {
-            const y = screenTop + (availableHeight / (visibleBuildings.length + 1)) * (index + 1);
-            this.drawMarker(item.building, item.x, y);
+            const targetY = screenTop + (availableHeight / (visibleBuildings.length + 1)) * (index + 1);
+
+            // Get smoothed y position for this building
+            const buildingId = `${item.building.lat},${item.building.lon}`;
+            const currentY = this.smoothedYPositions.get(buildingId) ?? targetY;
+
+            // Smooth the y position transition
+            const smoothedY = currentY + (targetY - currentY) * this.Y_POSITION_SMOOTHING;
+            this.smoothedYPositions.set(buildingId, smoothedY);
+
+            this.drawMarker(item.building, item.x, smoothedY);
         });
+
+        // Clean up y positions for buildings no longer visible
+        const visibleIds = new Set(visibleBuildings.map(item => `${item.building.lat},${item.building.lon}`));
+        for (const id of this.smoothedYPositions.keys()) {
+            if (!visibleIds.has(id)) {
+                this.smoothedYPositions.delete(id);
+            }
+        }
 
         requestAnimationFrame(() => this.draw());
     }
