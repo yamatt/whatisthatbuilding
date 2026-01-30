@@ -41,6 +41,12 @@ export class Buildings {
         return `${this.API_URL}${encodedQuery}`
     }
 
+    get radiusMeters() {
+        const R = 6371000; // Earth's radius in meters
+        const toRad = deg => deg * Math.PI / 180;
+        return R * toRad(this.DISTANCE);
+    }
+
     distanceKm(position_lat, position_lon, building_lat, building_lon) {
         const toRad = deg => deg * Math.PI / 180;
         const R = 6371; // Earth's radius in kilometers

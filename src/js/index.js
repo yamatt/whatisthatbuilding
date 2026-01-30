@@ -23,8 +23,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         try {
             const databaseManager = new DatabaseManager(latitude, longitude);
             const buildings = await databaseManager.getBuildings();
+            const buildingsManager = databaseManager.buildingsManager;
 
-            const hud = new Hud("hud", buildings, () => compass.heading);
+            const hud = new Hud("hud", buildings, () => compass.heading, buildingsManager);
 
             hud.getHeading = () => compass.heading;
 

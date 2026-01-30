@@ -3,10 +3,11 @@ export class Hud {
     HEADING_DEADZONE = 5; // Ignore changes smaller than 2 degrees
     HEADING_SMOOTHING = 0.3; // Smooth heading updates (0 = no smoothing, 1 = instant)
 
-    constructor(canvas_id, buildings, getHeading) {
+    constructor(canvas_id, buildings, getHeading, buildingsManager) {
         this.canvas_id = canvas_id;
         this.buildings = buildings;
         this.getHeading = getHeading;
+        this.buildingsManager = buildingsManager;
         this.smoothedHeading = 0;
         this.lastRawHeading = 0;
     }
@@ -35,6 +36,9 @@ export class Hud {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         const heading = this.getSmoothedHeading();
+
+        // Draw radius in top left
+        this.drawRadiusDisplay();
 
         // Collect visible buildings with their x positions
         const visibleBuildings = [];
@@ -91,6 +95,20 @@ export class Hud {
         this.lastRawHeading = rawHeading;
 
         return this.smoothedHeading;
+    }
+
+    drawRadiusDisplay() {
+        if (!this.buildingsManager) return;
+
+        const radiusMeters = this.buildingsManager.radiusMeters;
+        const radiusText = radiusMeters >= 1000
+            ? `${(radiusMeters / 1000).toFixed(1)}km`
+            : `${Math.round(radiusMeters)}m`;
+
+        this.context.fillStyle = 'white';
+        this.context.font = '14px sans-serif';
+        this.context.textAlign = 'left';
+        this.context.fillText(`Radius: ${radiusText}`, 10, 20);
     }
 
     drawMarker(building, x, y) {
