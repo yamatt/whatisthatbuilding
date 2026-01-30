@@ -97,8 +97,12 @@ export class Buildings {
                 lon
             );
 
+            const address = b.tags["addr:street"]
+                ? `${b.tags["addr:housenumber"] || ""} ${b.tags["addr:street"]}`.trim()
+                : b.tags["addr:city"] || "Building";
+
             return {
-                name: b.tags.name || "Building",
+                name: b.tags.name || address,
                 height: parseFloat(b.tags.height || b.tags["building:levels"] * 3 || 0),
                 lat,
                 lon,
