@@ -12,6 +12,9 @@ export class Hud {
         this.smoothedHeading = 0;
         this.lastRawHeading = 0;
         this.smoothedYPositions = new Map(); // Track smoothed y positions per building
+        this.manualHeadingOffset = 0; // Manual adjustment from swipe gestures
+        this.touchStartX = null;
+        this.touchStartOffset = 0;
     }
 
     get canvas() {
@@ -37,7 +40,7 @@ export class Hud {
     draw() {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        const heading = this.getSmoothedHeading();
+        const heading = this.getSmoothedHeading() + this.manualHeadingOffset;
 
         // Draw radius in top left
         this.drawRadiusDisplay();
@@ -169,6 +172,36 @@ export class Hud {
     start() {
         this.resize()
         window.addEventListener('resize', () => this.resize());
+        this.setupTouchHandlers();
         this.draw();
+    }
+
+    setupTouchHandlers() {
+        this.canvas.addEventListener('touchstart', (e) => {
+            this.touchStartX = e.touches[0].clientX;
+            this.touchStartOffset = this.manualHeadingOffset;
+        });
+
+        this.canvas.addEventListener('touchmove', (e) => {
+            if (this.touchStartX === null) return;
+            e.preventDefault();
+
+            const touchX = e.touches[0].clientX;
+            const deltaX = touchX - this.touchStartX;
+
+            // Convert pixel movement to degrees (based on FOV)
+            const pixelsPerDegree = window.innerWidth / this.FOV_DEGREES;
+            const degreesOffset = deltaX / pixelsPerDegree;
+
+            this.manualHeadingOffset = this.touchStartOffset + degreesOffset;
+        });
+
+        this.canvas.addEventListener('touchend', () => {
+            this.touchStartX = null;
+        });
+
+        this.canvas.addEventListener('touchcancel', () => {
+            this.touchStartX = null;
+        });
     }
 }
