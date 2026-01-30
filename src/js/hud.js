@@ -127,6 +127,9 @@ export class Hud {
         if (!this.buildingsManager) return;
 
         const radiusMeters = this.buildingsManager.DEFAULT_SEARCH_RADIUS * 1000;
+        const radiusText = radiusMeters >= 1000
+            ? `${(radiusMeters / 1000).toFixed(1)}km`
+            : `${Math.round(radiusMeters)}m`;
 
         this.context.fillStyle = 'white';
         this.context.font = '14px sans-serif';
