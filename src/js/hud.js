@@ -2,7 +2,7 @@ export class Hud {
     FOV_DEGREES = 60;
     HEADING_DEADZONE = 5; // Ignore changes smaller than 2 degrees
     HEADING_SMOOTHING = 0.3; // Smooth heading updates (0 = no smoothing, 1 = instant)
-    Y_POSITION_SMOOTHING = 0.15; // Smooth y position updates
+    Y_POSITION_SMOOTHING = 0.5; // Smooth y position updates (increased for faster movement)
 
     constructor(canvas_id, buildings, getHeading, buildingsManager, onRadiusChange) {
         this.canvas_id = canvas_id;
