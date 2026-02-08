@@ -55,7 +55,7 @@ jobs:
           echo "Database size for ${{ matrix.region.id }} is $(ls -lh region.db | cut -d ' ' -f 5)" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload db to artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: db-${{ matrix.region.id }}
           path: region.db
@@ -70,7 +70,7 @@ jobs:
             --output manifest.json
 
       - name: Upload manifest artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: manifest-${{ matrix.region.id }}
           path: manifest.json
