@@ -2,7 +2,7 @@
   "dependencies": {
     "aframe": "^1.7.1",
     "aframe-look-at-component": "^1.0.0",
-    "spl.js": "^1.0.0"
+    "spl.js": "^1.0.1"
   },
   "scripts": {
     "build": "npx webpack --mode production",
