@@ -77,7 +77,7 @@ jobs:
           retention-days: 7
 
       - name: Upload to Cloudflare R2
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v3.14.1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -106,7 +106,7 @@ jobs:
             --input-glob "manifests/**/manifest.json"
 
       - name: Upload combined manifest to Cloudflare R2
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v3.14.1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
