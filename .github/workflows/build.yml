@@ -11,6 +11,11 @@ on:
       - package.json
       - package-lock.json
       - webpack.config.js
+  workflow_run:
+    workflows:
+      - Auto-merge
+    types:
+      - completed
 
 permissions:
   contents: read
